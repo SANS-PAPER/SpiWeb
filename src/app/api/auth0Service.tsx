@@ -21,22 +21,23 @@ export const getAccessToken = async () => {
      console.log('masuk file getAccessToken------------------');
 
   
-    try {
+     try {
       const response = await axios.post(auth0Endpoint, {
         client_id: clientId,
         client_secret: clientSecret,
         audience: audience,
         grant_type: grantType,
       });
-
-      console.log('masuk file getAccessToken------------------', response);
-
   
       const { access_token, token_type, expires_in } = response.data;
 
       const expirationTime = new Date().getTime() + expires_in * 1000;
 
 
+
+    //   AsyncStorage.setItem('@postgraphile_token', JSON.stringify({ access_token, expirationTime }));
+    
+    sessionStorage.setItem('@postgraphile_token', JSON.stringify({ access_token, expirationTime }));
 
 
       // console.log('access_token------for postgraphile is ------------', access_token);
@@ -45,7 +46,9 @@ export const getAccessToken = async () => {
 
       return `${JSON.stringify({ access_token, expirationTime })}`;
     } catch (error) {
-      showAlert();
+      //Alert.alert('Auth0 Postgraphile Error', 'Please refresh/relogin');
+        alert('Auth0 Postgraphile Error: Please refresh/relogin');
+
       throw error;
     }
   };
