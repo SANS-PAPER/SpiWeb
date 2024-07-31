@@ -38,7 +38,7 @@ export const getAccessToken = async () => {
 
 
 
-
+      sessionStorage.setItem('@postgraphile_token', JSON.stringify({ access_token, expirationTime }));
       // console.log('access_token------for postgraphile is ------------', access_token);
 
 
