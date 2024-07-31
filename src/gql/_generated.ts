@@ -1915,7 +1915,7 @@ export type Available = Node & {
   isOnline: Scalars['Boolean']['output'];
   /** Reads a single `JobType` that is related to this `Available`. */
   jobType?: Maybe<JobType>;
-  jobTypeId: Scalars['BigInt']['output'];
+  jobTypeId?: Maybe<Scalars['BigInt']['output']>;
   latitude?: Maybe<Scalars['BigFloat']['output']>;
   longitude?: Maybe<Scalars['BigFloat']['output']>;
   /** A globally unique identifier. Can be used in various places throughout the system to identify this single value. */
@@ -1995,7 +1995,7 @@ export type AvailableInput = {
   deletedAt?: InputMaybe<Scalars['Datetime']['input']>;
   id?: InputMaybe<Scalars['BigInt']['input']>;
   isOnline?: InputMaybe<Scalars['Boolean']['input']>;
-  jobTypeId: Scalars['BigInt']['input'];
+  jobTypeId?: InputMaybe<Scalars['BigInt']['input']>;
   latitude?: InputMaybe<Scalars['BigFloat']['input']>;
   longitude?: InputMaybe<Scalars['BigFloat']['input']>;
   preferredLocation?: InputMaybe<Scalars['String']['input']>;
@@ -42297,7 +42297,7 @@ export type UpdatePreferencesMutationVariables = Exact<{
 }>;
 
 
-export type UpdatePreferencesMutation = { __typename?: 'Mutation', updateAvailable?: { __typename?: 'UpdateAvailablePayload', available?: { __typename?: 'Available', availableToWork: boolean, jobTypeId: any, preferredLocation?: string | null } | null } | null };
+export type UpdatePreferencesMutation = { __typename?: 'Mutation', updateAvailable?: { __typename?: 'UpdateAvailablePayload', available?: { __typename?: 'Available', availableToWork: boolean, jobTypeId?: any | null, preferredLocation?: string | null } | null } | null };
 
 export type GetFillupFormIdFromProfileQueryVariables = Exact<{
   userId: Scalars['BigInt']['input'];
@@ -42312,6 +42312,13 @@ export type GetSkillDropdDownListQueryVariables = Exact<{
 
 
 export type GetSkillDropdDownListQuery = { __typename?: 'Query', fillupFormFields?: { __typename?: 'FillupFormFieldsConnection', nodes: Array<{ __typename?: 'FillupFormField', id: any, fillupFormId: any, fieldId: any, answer: string, field?: { __typename?: 'Field', fieldProperties: { __typename?: 'FieldPropertiesConnection', nodes: Array<{ __typename?: 'FieldProperty', fieldId: any, propertyId: any, value: string, updatedAt?: any | null }> } } | null }> } | null };
+
+export type GetUploadedPhotosQueryVariables = Exact<{
+  userID?: InputMaybe<Scalars['BigInt']['input']>;
+}>;
+
+
+export type GetUploadedPhotosQuery = { __typename?: 'Query', fillupForms?: { __typename?: 'FillupFormsConnection', nodes: Array<{ __typename?: 'FillupForm', id: any, userId: any, formId: any, updatedAt?: any | null, fillupFormFields: { __typename?: 'FillupFormFieldsConnection', nodes: Array<{ __typename?: 'FillupFormField', id: any, fillupFormId: any, answer: string, updatedAt?: any | null, field?: { __typename?: 'Field', id: any, component?: { __typename?: 'Component', id: any, description: string } | null } | null }> } }> } | null };
 
 export type GetUserDetailsByIdQueryVariables = Exact<{
   userID: Scalars['BigInt']['input'];
@@ -42450,6 +42457,66 @@ export const useInfiniteGetSkillDropdDownListQuery = <
     return useInfiniteQuery<GetSkillDropdDownListQuery, TError, TData>(
       variables === undefined ? ['GetSkillDropdDownList.infinite'] : ['GetSkillDropdDownList.infinite', variables],
       (metaData) => fetcher<GetSkillDropdDownListQuery, GetSkillDropdDownListQueryVariables>(client, GetSkillDropdDownListDocument, {...variables, ...(metaData.pageParam ?? {})}, headers)(),
+      options
+    )};
+
+export const GetUploadedPhotosDocument = `
+    query GetUploadedPhotos($userID: BigInt) {
+  fillupForms(condition: {userId: $userID}, orderBy: UPDATED_AT_DESC) {
+    nodes {
+      id
+      userId
+      formId
+      updatedAt
+      fillupFormFields(orderBy: UPDATED_AT_DESC) {
+        nodes {
+          id
+          fillupFormId
+          answer
+          updatedAt
+          field {
+            id
+            component {
+              id
+              description
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    `;
+
+export const useGetUploadedPhotosQuery = <
+      TData = GetUploadedPhotosQuery,
+      TError = unknown
+    >(
+      client: GraphQLClient,
+      variables?: GetUploadedPhotosQueryVariables,
+      options?: UseQueryOptions<GetUploadedPhotosQuery, TError, TData>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useQuery<GetUploadedPhotosQuery, TError, TData>(
+      variables === undefined ? ['GetUploadedPhotos'] : ['GetUploadedPhotos', variables],
+      fetcher<GetUploadedPhotosQuery, GetUploadedPhotosQueryVariables>(client, GetUploadedPhotosDocument, variables, headers),
+      options
+    )};
+
+export const useInfiniteGetUploadedPhotosQuery = <
+      TData = GetUploadedPhotosQuery,
+      TError = unknown
+    >(
+      client: GraphQLClient,
+      variables?: GetUploadedPhotosQueryVariables,
+      options?: UseInfiniteQueryOptions<GetUploadedPhotosQuery, TError, TData>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useInfiniteQuery<GetUploadedPhotosQuery, TError, TData>(
+      variables === undefined ? ['GetUploadedPhotos.infinite'] : ['GetUploadedPhotos.infinite', variables],
+      (metaData) => fetcher<GetUploadedPhotosQuery, GetUploadedPhotosQueryVariables>(client, GetUploadedPhotosDocument, {...variables, ...(metaData.pageParam ?? {})}, headers)(),
       options
     )};
 
