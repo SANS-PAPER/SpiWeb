@@ -309,7 +309,7 @@ const Profile: FC = () => {
         <div className="flex flex-wrap">
           {images.map((image, index) => (
             <div key={index} className="relative mr-10 mb-4">
-              <Image src={image} className="w-40 h-28 object-cover" alt={`Gallery Image ${index + 1}`} />
+              <Image src={image} className="w-40 h-28 object-cover" alt={`Gallery Image ${index + 1}`} width={50} height={70} />
               {isEditingGallery && (
                 <button
                   onClick={() => handleRemoveImage(index)}
