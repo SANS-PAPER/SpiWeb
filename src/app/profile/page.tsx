@@ -29,13 +29,11 @@ const Profile: FC = () => {
 
   const handleAvailabilityChange = (checked:any) => {
     setIsAvailableToWork(checked);
-    console.log(`Available to work: ${checked}`);
     // Handle the change event here, e.g., update state or make an API call
   };
 
   const handleLocationChange = (event:any) => {
     setPreferredLocation(event.target.value);
-    console.log(`Preferred location: ${event.target.value}`);
     // Handle the change event here, e.g., update state or make an API call
   };
 
@@ -101,7 +99,6 @@ const Profile: FC = () => {
   };
 
   const handleWorkTypeChange = (value:any) => {
-    console.log(`Selected work type: ${value}`);
     // Handle the change event here, e.g., update state or make an API call
   };
 
@@ -312,7 +309,7 @@ const Profile: FC = () => {
         <div className="flex flex-wrap">
           {images.map((image, index) => (
             <div key={index} className="relative mr-10 mb-4">
-              <img src={image} className="w-40 h-28 object-cover" alt={`Gallery Image ${index + 1}`} />
+              <Image src={image} className="w-40 h-28 object-cover" alt={`Gallery Image ${index + 1}`} />
               {isEditingGallery && (
                 <button
                   onClick={() => handleRemoveImage(index)}

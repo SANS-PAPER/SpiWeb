@@ -42,25 +42,19 @@ const useUserSkill = (userId) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Initialize GraphQL client if not already initialized
         if (!client) {
           const initializedClient = await initializeGraphQLClient();
           setClient(initializedClient);
-
         }
-
-        // Fetch user skills using the initialized client
+  
         if (client) {
           const response = await fetchFillupFormIdFromProfile(client, userId);
-
-
-       // Parse the response data to extract skill IDs
+  
           const skillData = response?.[0]?.skills;
           const skillIds = skillData?.split(',').map(skill => skill.trim());
-
-
+  
           const responseDropdownlist = await fetchSkill(client, skillIds);
-
+  
           setDataSkill(responseDropdownlist);
         }
       } catch (error) {
@@ -69,14 +63,10 @@ const useUserSkill = (userId) => {
         setIsLoadingSkill(false);
       }
     };
-
+  
     fetchData();
-
-    // Clean up function ntahlah
-    return () => {
-      // Any cleanup code if necessary
-    };
-  }, [client]);
+  }, [client, userId]);  // Added userId to the dependency array
+  
 
   return { dataSkill, errorSkill, isLoadingSkill };
 };
