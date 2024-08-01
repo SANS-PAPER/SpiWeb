@@ -86,7 +86,6 @@ async function customCrossFetch(input: RequestInfo | URL, init?: RequestInit) {
            // errorPolicy: 'all',
            // fetch: customCrossFetch,
         });
-        console.log('ppppp', client)
     } catch (error) {
         console.error('Error setting up GraphQL client:', error);
         throw error;
