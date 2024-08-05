@@ -71,7 +71,7 @@ async function customCrossFetch(input: RequestInfo | URL, init?: RequestInit) {
   };
 
 
-   const initializeGraphQLClient = async () => {
+   export const initializeGraphQLClient = async () => {
 
     const REACT_APP_GQL_HOST_GRAPHILE = 'https://form-staging2.sanspaper.com:20991/graphql';
 

@@ -7,7 +7,8 @@ import Link from "next/link";
 import { useUserStore } from "@/store/user/userStore";
 import {useUserData} from "@/graphql/useUserData";
 import { UserProfile } from "./types/userProfile";
-import { FC, useState } from "react";
+//import { PhotoData } from "./types/PhotoData";
+import { FC, useEffect, useState } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faSave, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 import { Button, Form, Input, Select, Switch } from 'antd';
@@ -16,6 +17,14 @@ import { GraphQLClient } from "graphql-request";
 import { useUpdatePreferencesMutation } from "@/gql/_generated";
 import { UpdateAvailableInput, UpdatePreferencesMutationResponse } from "./types/updatePreferences";
 import { showSuccessNotification, showErrorNotification } from "@/components/Notification/NotificationUtil";
+import usePhotoData from "@/graphql/usePhotoData";
+
+interface GalleryItem {
+  answer: string;
+  fieldId: string;
+  componentId: string;
+  fillupFormFields: string;
+}
 
 const Profile: FC = () => {
 
@@ -26,6 +35,9 @@ const Profile: FC = () => {
   const [preferredLocation, setPreferredLocation] = useState('');
   const [form] = Form.useForm();
   const { mutateAsync: updatePreferences } = useUpdatePreferencesMutation(client);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const { dataPhoto, errorPhoto, isLoadingPhoto } = usePhotoData(userId || "");
+  const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
 
   const handleAvailabilityChange = (checked:any) => {
     setIsAvailableToWork(checked);
@@ -74,10 +86,13 @@ const Profile: FC = () => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newImage = URL.createObjectURL(e.target.files[0]);
-      setImages([...images, newImage]);
+      const newImages = Array.from(e.target.files).map((file) =>
+        URL.createObjectURL(file)
+      );
+      setImages([...images, ...newImages]);
     }
   };
+  
 
   const saveGalleryChanges = () => {
     setImages(prev => [...prev, ...newImages]);
@@ -127,8 +142,44 @@ const Profile: FC = () => {
         showErrorNotification('Failed to update preferences');
       }
     };
-  
-  
+
+    useEffect(() => {
+      if (dataPhoto?.[0]?.fillupForms?.nodes) {
+        const filteredAnswers = dataPhoto?.[0]?.fillupForms?.nodes
+          .flatMap(form => form.fillupFormFields || []) // Directly access `fillupFormFields` as an array of `PhotoField`
+          .filter(field => {
+            const answer = field.answer || '';
+            const componentId = field.field?.component?.id || '';
+    
+            const cleanAnswer = answer.replace(/^"|"$/g, '');
+    
+            const isValidAnswer =
+              cleanAnswer.trim().length > 0 &&
+              cleanAnswer !== '""' &&
+              cleanAnswer !== 'null';
+    
+            return componentId === '125' && isValidAnswer;
+          })
+          .map(field => ({
+            answer: field.answer || '', 
+            fieldId: field.field?.id || '',
+            componentId: field.field?.component?.id || '',
+            fillupFormFields: field.id,
+          }));
+    
+        setGalleryData(filteredAnswers);
+      }
+    }, [dataPhoto]);
+
+    const combinedImages = [
+      ...images, 
+      ...galleryData.map((item: any) => {
+        const cleanImage = item.answer.replace(/"/g, '');
+        return `${process.env.NEXT_PUBLIC_PHOTO_HOST}/${cleanImage}`;
+      })
+    ];
+    
+    
   return (
     <DefaultLayout>
       <div className="mx-auto ">
@@ -293,35 +344,41 @@ const Profile: FC = () => {
 
               {/* Gallery section */}
               <div className="mt-10 mb-5 mr-3">
-        <div className="flex items-center justify-between mb-5">
-          <p className="font-bold text-lg">Gallery</p>
-          <button
-            onClick={toggleGalleryEditing}
-            className="flex items-center px-4 py-2 text-blue rounded-md"
-          >
-            <FontAwesomeIcon icon={isEditingGallery ? faSave : faEdit} className="mr-2" />
-            {isEditingGallery ? 'Save' : 'Edit'}
-          </button>
+    <div className="flex items-center justify-between mb-5">
+      <p className="font-bold text-lg">Gallery</p>
+      <button
+        onClick={toggleGalleryEditing}
+        className="flex items-center px-4 py-2 text-blue rounded-md"
+      >
+        <FontAwesomeIcon icon={isEditingGallery ? faSave : faEdit} className="mr-2" />
+        {isEditingGallery ? 'Save' : 'Edit'}
+      </button>
+    </div>
+    {isEditingGallery && (
+      <input type="file" accept="image/*" onChange={handleImageUpload} className="mb-4" />
+    )}
+    <div className="flex flex-wrap">
+      {combinedImages.map((imageUrl, index) => (
+        <div key={index} className="relative mr-10 mb-4">
+          <Image
+            src={imageUrl}
+            className="w-40 h-28 object-cover"
+            alt={`Gallery Image ${index + 1}`}
+            width={50}
+            height={70}
+          />
+          {isEditingGallery && (
+            <button
+              onClick={() => handleRemoveImage(index)}
+              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full"
+            >
+              <FontAwesomeIcon icon={faTrashAlt} />
+            </button>
+          )}
         </div>
-        {isEditingGallery && (
-          <input type="file" accept="image/*" onChange={handleImageUpload} className="mb-4" />
-        )}
-        <div className="flex flex-wrap">
-          {images.map((image, index) => (
-            <div key={index} className="relative mr-10 mb-4">
-              <Image src={image} className="w-40 h-28 object-cover" alt={`Gallery Image ${index + 1}`} width={50} height={70} />
-              {isEditingGallery && (
-                <button
-                  onClick={() => handleRemoveImage(index)}
-                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full"
-                >
-                  <FontAwesomeIcon icon={faTrashAlt} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      ))}
+    </div>
+  </div>
 
                 {/* Profile description */}
                 <div className="mt-10 mb-5 mr-3">
