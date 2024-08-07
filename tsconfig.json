@@ -35,7 +35,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "src/graphql/useUserSkill.js", "src/graphql/useUserSkill.js", "src/graphql/useUserSkill.js"  ],
   "exclude": [
     "node_modules"
   ]

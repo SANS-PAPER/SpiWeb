@@ -1,4 +1,9 @@
 // types/UserProfile.ts
+interface GetUserDetailsByIdResponse {
+    users: {
+      nodes: UserProfile[];
+    };
+  }
 
 export interface UserProfile {
     id: string;
@@ -17,15 +22,21 @@ export interface UserProfile {
         stateProvince?: string;
         country?: string;
     };
-    availables?: {
-        availableToWork?: boolean;
-        preferedLocation?: string;
-        jobType?: {
-            id: string;
-            description?: string;
-        }
-    };
+    availables: {
+        nodes: AvailableNode[];
+      };
     }
+
+    interface AvailableNode {
+        availableToWork: boolean;
+        preferredLocation: string;
+        jobType: JobType;
+      }
+
+      interface JobType {
+        id: number;
+        description: string;
+      }
   
   export interface UseUserDataResult {
     dataUser: UserProfile[];
