@@ -1,5 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
-//import { RequestInit } from 'graphql-request/dist/types.dom';
+import { RequestInit } from 'graphql-request/dist/types.dom';
 import { useMutation, useQuery, useInfiniteQuery, UseMutationOptions, UseQueryOptions, UseInfiniteQueryOptions } from '@tanstack/react-query';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -42299,6 +42299,13 @@ export type UpdatePreferencesMutationVariables = Exact<{
 
 export type UpdatePreferencesMutation = { __typename?: 'Mutation', updateAvailable?: { __typename?: 'UpdateAvailablePayload', available?: { __typename?: 'Available', availableToWork: boolean, jobTypeId?: any | null, preferredLocation?: string | null } | null } | null };
 
+export type UpdateSummaryMutationVariables = Exact<{
+  patch: UpdateUserInput;
+}>;
+
+
+export type UpdateSummaryMutation = { __typename?: 'Mutation', updateUser?: { __typename?: 'UpdateUserPayload', user?: { __typename?: 'User', id: any, name: string, phoneNumber?: string | null, jobTitle?: string | null, summaryBio?: string | null } | null } | null };
+
 export type GetFillupFormIdFromProfileQueryVariables = Exact<{
   userId: Scalars['BigInt']['input'];
 }>;
@@ -42360,6 +42367,35 @@ export const useUpdatePreferencesMutation = <
     return useMutation<UpdatePreferencesMutation, TError, UpdatePreferencesMutationVariables, TContext>(
       ['updatePreferences'],
       (variables?: UpdatePreferencesMutationVariables) => fetcher<UpdatePreferencesMutation, UpdatePreferencesMutationVariables>(client, UpdatePreferencesDocument, variables, headers)(),
+      options
+    )};
+
+export const UpdateSummaryDocument = `
+    mutation updateSummary($patch: UpdateUserInput!) {
+  updateUser(input: $patch) {
+    user {
+      id
+      name
+      phoneNumber
+      jobTitle
+      summaryBio
+    }
+  }
+}
+    `;
+
+export const useUpdateSummaryMutation = <
+      TError = unknown,
+      TContext = unknown
+    >(
+      client: GraphQLClient,
+      options?: UseMutationOptions<UpdateSummaryMutation, TError, UpdateSummaryMutationVariables, TContext>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useMutation<UpdateSummaryMutation, TError, UpdateSummaryMutationVariables, TContext>(
+      ['updateSummary'],
+      (variables?: UpdateSummaryMutationVariables) => fetcher<UpdateSummaryMutation, UpdateSummaryMutationVariables>(client, UpdateSummaryDocument, variables, headers)(),
       options
     )};
 

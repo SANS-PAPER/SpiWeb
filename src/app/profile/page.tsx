@@ -1,23 +1,21 @@
 "use client";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Image from "next/image";
-import { Metadata } from "next";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
-import Link from "next/link";
 import { useUserStore } from "@/store/user/userStore";
 import {useUserData} from "@/graphql/useUserData";
-import { UserProfile } from "./types/userProfile";
 //import { PhotoData } from "./types/PhotoData";
 import { FC, useEffect, useState } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faSave, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
-import { Button, Form, Input, Select, Switch } from 'antd';
+import { Button, Form, Input, Select, Spin, Switch } from 'antd';
 import { client } from "@/app/api/client";
-import { GraphQLClient } from "graphql-request";
-import { useUpdatePreferencesMutation } from "@/gql/_generated";
-import { UpdateAvailableInput, UpdatePreferencesMutationResponse } from "./types/updatePreferences";
+import { useUpdatePreferencesMutation, useUpdateSummaryMutation } from "@/gql/_generated";
+import { UpdateAvailableInput } from "./types/updatePreferences";
 import { showSuccessNotification, showErrorNotification } from "@/components/Notification/NotificationUtil";
 import usePhotoData from "@/graphql/usePhotoData";
+import useUserSkill from "@/graphql/useUserSkill";
+import { UpdateSummaryVariables } from "./types/updateSummary";
 
 interface GalleryItem {
   answer: string;
@@ -34,10 +32,23 @@ const Profile: FC = () => {
   const [isAvailableToWork, setIsAvailableToWork] = useState(false);
   const [preferredLocation, setPreferredLocation] = useState('');
   const [form] = Form.useForm();
-  const { mutateAsync: updatePreferences } = useUpdatePreferencesMutation(client);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { dataPhoto, errorPhoto, isLoadingPhoto } = usePhotoData(userId || "");
+  const {dataSkill, errorSkill, isLoadingSkill} = useUserSkill(userId || "");
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
+  const [isEditingSkills, setIsEditingSkills] = useState(false);
+  const [newSkills, setNewSkills] = useState(dataSkill || []);
+
+  const workTypeLabels: { [key: string]: string } = {
+    '1': 'Full-time',
+    '2': 'Part-time',
+    '3': 'Contract',
+  };  
+
+  const { mutateAsync: updatePreferences } = useUpdatePreferencesMutation(client);
+  const { mutateAsync: updateUserSummary } = useUpdateSummaryMutation(client);
+
+  console.log('ssss', dataSkill);
 
   const handleAvailabilityChange = (checked:any) => {
     setIsAvailableToWork(checked);
@@ -60,7 +71,7 @@ const Profile: FC = () => {
   const [isEditingGallery, setIsEditingGallery] = useState(false);
   const [isEditingPreferences, setIsEditingPreferences] = useState(false);
   const [newImages, setNewImages] = useState<string[]>([]);
-  const [bio, setBio] = useState(dataUser?.[0]?.summaryBio || "No description");
+  const [bio, setBio] = useState(dataUser?.[0]?.summaryBio);
 
   const handleEdit = () => {
     setIsEditingProfile(true);
@@ -79,9 +90,27 @@ const Profile: FC = () => {
     form.resetFields();
   };
 
-  const handleSave = () => {
-    // Here you can add the logic to save the updated bio, e.g., make an API call
-    setIsEditingProfile(false);
+  const handleSave = async () => {
+    try {
+      const input: UpdateSummaryVariables = {
+        patch: {
+          summaryBio: bio,
+        },
+      };
+
+      const response = await updateUserSummary({
+        patch: {
+          id: userId, 
+          ...input,
+        },
+      });
+  
+      showSuccessNotification('Profile bio updated successfully');
+      setIsEditingProfile(false);
+  
+    } catch (error) {
+      showErrorNotification('Failed to update profile bio');
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,31 +146,35 @@ const Profile: FC = () => {
     // Handle the change event here, e.g., update state or make an API call
   };
 
+  useEffect(() => {
+    if (dataUser?.[0]?.availables) {
+      setIsAvailableToWork(dataUser?.[0]?.availables?.nodes?.[0]?.availableToWork || false);
+      setPreferredLocation(dataUser?.[0]?.availables?.nodes?.[0]?.preferredLocation || '');
+    }
+  }, [dataUser]);
 
-    const handleSubmit = async (values: any) => {
-      try {
-        const response = await updatePreferences({
-          patch: {
-            id: userId,
-            patch: {
-              availableToWork: values.isAvailableToWork,
-              jobTypeId: BigInt(values.workType).toString(), 
-              preferredLocation: values.preferredLocation,
-            },
-          } as UpdateAvailableInput,
-        });
-  
-        if (response?.updateAvailable?.available) {
-          // Handle successful update
-          showSuccessNotification('Preferences updated successfully');
-        } else {
-          // Handle the case where updateAvailable or available is null or undefined
-          showErrorNotification('Failed to update preferences');
-        }
-      } catch (error) {
-        showErrorNotification('Failed to update preferences');
-      }
-    };
+  const handleSubmit = async (values: any) => {
+  try {
+    const response = await updatePreferences({
+      patch: {
+        id: userId,
+        patch: {
+          availableToWork: values.isAvailableToWork,
+          jobTypeId: values.workType, 
+          preferredLocation: values.preferredLocation,
+        },
+      } as UpdateAvailableInput,
+    });
+
+    if (response?.updateAvailable?.available) {
+      showSuccessNotification('Preferences updated successfully');
+    } else {
+      showErrorNotification('Failed to update preferences');
+    }
+  } catch (error) {
+    showErrorNotification('Failed to update preferences');
+  }
+};
 
     useEffect(() => {
       if (dataPhoto?.[0]?.fillupForms?.nodes) {
@@ -178,7 +211,25 @@ const Profile: FC = () => {
         return `${process.env.NEXT_PUBLIC_PHOTO_HOST}/${cleanImage}`;
       })
     ];
+
+    const handleSkillChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+      const updatedSkills = [...newSkills];
+      updatedSkills[index].description = e.target.value;
+      setNewSkills(updatedSkills);
+    };
     
+    const handleAddSkill = () => {
+      setNewSkills([...newSkills, { description: '', expiry: '' }]);
+    };
+    
+    const handleRemoveSkill = (index: number) => {
+      const updatedSkills = newSkills.filter((_, i) => i !== index);
+      setNewSkills(updatedSkills);
+    };
+    
+    const handleAddSkillRedirect = () => {
+      window.location.href = "https://form.sanspaper.com/";
+    };
     
   return (
     <DefaultLayout>
@@ -269,55 +320,91 @@ const Profile: FC = () => {
               </div>
 
               {/* Preferences */}
-              </div>
-              <div className="space-y-5 mt-10">
+              <div className="space-y-5 mt-20">
                 <div className="flex justify-between items-center mb-5">
-                <h3 className="align-center font-semibold dark:text-white">
-                          Preferences
-                        </h3>
-                        <button
-                          className=" hover:text-blue-700 mr-0"
-                          onClick={() => setIsEditingPreferences(!isEditingPreferences)}
-                        >
-                          <FontAwesomeIcon icon={faEdit} />
-                          Edit
-                        </button>
+                  <h3 className="align-center font-semibold dark:text-white">Preferences</h3>
+                  {!isEditingPreferences && (
+                  <button
+                    className="hover:text-blue-700 mr-0"
+                    onClick={() => setIsEditingPreferences(!isEditingPreferences)}
+                  >
+                    <FontAwesomeIcon icon={faEdit} />
+                    Edit
+                  </button>
+                )}
+                </div>
+                {isEditingPreferences ? (
+                <Form
+                  form={form}
+                  layout="vertical"
+                  name="preferences"
+                  initialValues={{ isAvailableToWork, preferredLocation }}
+                  onFinish={handleSubmit}
+                >
+                  <Form.Item
+                    className="flex text-black font-semibold mr-2"
+                    name="isAvailableToWork"
+                    label="Availability"
+                  >
+                    <Switch
+                      checked={isAvailableToWork}
+                      onChange={handleAvailabilityChange}
+                    />
+                  </Form.Item>
+                  <Form.Item name="workType" label="Work Type">
+                    <Select placeholder="Select work type">
+                      {Object.entries(workTypeLabels).map(([value, label]) => (
+                        <Option key={value} value={value}>
+                          {label}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="preferredLocation" label="Preferred Location">
+                    <Input
+                      value={preferredLocation}
+                      onChange={handleLocationChange}
+                    />
+                  </Form.Item>
+                  {isEditingPreferences && (
+                    <Form.Item>
+                      <Button type="primary" htmlType="submit">
+                        Update Preferences
+                      </Button>
+                      <Button
+                        type="default"
+                        onClick={() => {
+                          setIsEditingPreferences(false);
+                          form.resetFields();
+                        }}
+                        style={{ marginLeft: '10px' }}
+                      >
+                        Cancel
+                      </Button>
+                    </Form.Item>
+                  )}
+                </Form>
+              ) : (
+                <div>
+                  <div className="flex items-center mb-2">
+                    <p className="font-semibold text-black">Availability:</p>
+                    <p className="ml-2">{isAvailableToWork ? 'Available' : 'Not Available'}</p>
+                  </div>
+                  <div className="flex items-center mb-2">
+                    <p className="font-semibold text-black">Work Type:</p>
+                    <p className="ml-2">{dataUser?.[0]?.availables?.nodes?.[0]?.jobType?.description}</p>
+                  </div>
+                  <div className="flex items-center mb-2">
+                    <p className="font-semibold text-black">Preferred Location:</p>
+                    <p className="ml-2">{dataUser?.[0]?.availables?.nodes?.[0]?.preferredLocation}</p>
+                  </div>
+                </div>
+              )}
+              </div>
+            </div>
           </div>
-              <Form
-                form={form}
-                layout="vertical"
-                name="preferences"
-                initialValues={{ isAvailableToWork, preferredLocation }}
-                onFinish={handleSubmit}
-              >
-                
-                <Form.Item className="flex text-black font-semibold mr-2" name="isAvailableToWork" label="Availability">
-                  <Switch checked={isAvailableToWork} onChange={handleAvailabilityChange} />
-                </Form.Item>
-                <Form.Item name="workType" label="Work Type">
-                  <Select placeholder="Select work type" onChange={handleWorkTypeChange}>
-                    <Option value="1">Full-time</Option>
-                    <Option value="2">Part-time</Option>
-                    <Option value="3">Freelance</Option>
-                  </Select>
-                </Form.Item>
-                <Form.Item name="preferredLocation" label="Preferred Location">
-                  <Input value={preferredLocation} onChange={handleLocationChange} />
-                </Form.Item>
-                
-                {isEditingPreferences && (
-            <Form.Item>
-              <Button type="primary" htmlType="submit">Update Preferences</Button>
-              <Button type="default" onClick={handleCancelClick} style={{ marginLeft: '10px' }}>
-                Cancel
-              </Button>
-            </Form.Item>
-          )}
-              </Form>
-              </div>
-              </div>
-              </div>
-              </div>
+          </div>
+          </div>
 
 
         <div className="flex-[0.7] mt-10" >
@@ -408,24 +495,91 @@ const Profile: FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-black">{bio}</p>
+                    <p className="text-black">{dataUser?.[0]?.summaryBio}</p>
                   </div>
                 )}
               </div>
             </div>
 
-
                 {/* Skills */}
-              <div className="mt-10 mb-5 mr-3">
-                  <p className="font-bold text-lg mb-5">SKILLS</p>
-                  <div>
-                    <p className="text-black">Leadership and Team Coordination</p>
-                    <p className="text-black mt-2">Experience : 6 - 10 years</p>
-                  </div>
+                <div className="mt-10 mb-5 mr-3">
+                  
+  
+  <div>
+    <div className="flex justify-between items-center mb-5">
+  <p className="font-bold text-lg mb-5"> TOP SKILLS</p>
+        <button
+          onClick={handleAddSkillRedirect}
+          className="px-4 py-2 text-blue rounded-md"
+        >
+          <FontAwesomeIcon icon={isEditingSkills ? faSave : faEdit} className="mr-2" />
+          {isEditingSkills ? 'Save' : 'Edit'}
+        </button>
+        </div>
+        {isEditingSkills ? (
+          <div>
+            {newSkills.map((skill: any, index: number) => (
+              <div key={index} className="flex items-center mb-4">
+                <Input
+                  value={skill.description}
+                  onChange={(e) => handleSkillChange(e, index)}
+                  className="w-full"
+                />
+                <Button
+                  type="primary"
+                  danger
+                  onClick={() => handleRemoveSkill(index)}
+                  className="ml-2"
+                >
+                  Remove
+                </Button>
               </div>
+            ))}
+            <Button type="dashed" onClick={handleAddSkill}>
+              Add Skill
+            </Button>
+          </div>
+        ) : (
+  <div>
+    {isLoadingSkill || !dataSkill ? (
+      !isLoadingSkill && !dataSkill ? (
+        <p>No skills added</p>
+      ) : (
+        <Spin size="large" />
+      )
+    ) : (
+      
+          <div>
+            {dataSkill?.map((a: any) =>
+              a.skill.map((sk: any) => (
+                <div
+                  className="flex items-center mb-4"
+                  key={sk.description}
+                >
+                  <Image
+                    className="w-6 h-6 mr-3"
+                    src="/images/group-368691.png"
+                    alt="Skill icon"
+                    width={24}
+                    height={24}
+                  />
+                  <div>
+                    <p className="font-semibold">{sk.description}</p>
+                    <p className="text-gray-600">{a.expiry}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</div>
+
               
               {/* Other Skills */}
-              <div className="mt-10 mb-5 mr-3">
+              {/* <div className="mt-10 mb-5 mr-3">
                   <p className="font-bold text-lg mb-5"> OTHER SKILLS</p>
                   <div>
                     <p className="text-black font-md">Construction Management</p>
@@ -433,7 +587,7 @@ const Profile: FC = () => {
                     <p className="text-black font-md">Safety Compliance</p>
                     <p className="text-black mb-5">Experience : 2 - 5 years</p>
                   </div>
-              </div>
+              </div> */}
 
         </div>
         
