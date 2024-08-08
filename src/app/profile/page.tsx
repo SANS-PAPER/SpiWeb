@@ -16,6 +16,9 @@ import { showSuccessNotification, showErrorNotification } from "@/components/Not
 import usePhotoData from "@/graphql/usePhotoData";
 import useUserSkill from "@/graphql/useUserSkill";
 import { UpdateSummaryVariables } from "./types/updateSummary";
+import Lightbox from 'react-image-lightbox';
+import ImageModal from "./ImageModal";
+import './Gallery.css';
 
 interface GalleryItem {
   answer: string;
@@ -27,14 +30,25 @@ interface GalleryItem {
 const Profile: FC = () => {
 
   const { userId, userAuth } = useUserStore();
-  const { dataUser, errorUser, isLoadingUser } = useUserData(userId || "");
   const { Option } = Select;
+
+  const { dataUser, errorUser, isLoadingUser } = useUserData(userId || "");
+  const { dataPhoto, errorPhoto, isLoadingPhoto } = usePhotoData(userId || "");
+  const {dataSkill, errorSkill, isLoadingSkill} = useUserSkill(userId || "");
+
+  const { mutateAsync: updatePreferences } = useUpdatePreferencesMutation(client);
+  const { mutateAsync: updateUserSummary } = useUpdateSummaryMutation(client);
+
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingGallery, setIsEditingGallery] = useState(false);
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
+  const [bio, setBio] = useState(dataUser?.[0]?.summaryBio);
   const [isAvailableToWork, setIsAvailableToWork] = useState(false);
   const [preferredLocation, setPreferredLocation] = useState('');
   const [form] = Form.useForm();
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const { dataPhoto, errorPhoto, isLoadingPhoto } = usePhotoData(userId || "");
-  const {dataSkill, errorSkill, isLoadingSkill} = useUserSkill(userId || "");
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
   const [newSkills, setNewSkills] = useState(dataSkill || []);
@@ -45,11 +59,6 @@ const Profile: FC = () => {
     '3': 'Contract',
   };  
 
-  const { mutateAsync: updatePreferences } = useUpdatePreferencesMutation(client);
-  const { mutateAsync: updateUserSummary } = useUpdateSummaryMutation(client);
-
-  console.log('ssss', dataSkill);
-
   const handleAvailabilityChange = (checked:any) => {
     setIsAvailableToWork(checked);
     // Handle the change event here, e.g., update state or make an API call
@@ -57,37 +66,14 @@ const Profile: FC = () => {
 
   const handleLocationChange = (event:any) => {
     setPreferredLocation(event.target.value);
-    // Handle the change event here, e.g., update state or make an API call
   };
 
-  const [images, setImages] = useState([
-    '/images/cards/cards-02.png',
-    '/images/cards/cards-02.png',
-    '/images/cards/cards-02.png',
-    '/images/cards/cards-02.png',
-  ]);
-
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isEditingGallery, setIsEditingGallery] = useState(false);
-  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
-  const [newImages, setNewImages] = useState<string[]>([]);
-  const [bio, setBio] = useState(dataUser?.[0]?.summaryBio);
+  const [images, setImages] = useState(galleryData.map(item => ({
+    url: `${process.env.DIGITAL_OCEAN_FILE_PATH}/${item.answer.replace(/"/g, '')}`,
+  })));
 
   const handleEdit = () => {
     setIsEditingProfile(true);
-  };
-
-  const handleEditGallery = () => {
-    setIsEditingGallery(true);
-  };
-
-  const handleEditPreferences = () => {
-    setIsEditingPreferences(true);
-  };
-
-  const handleCancelClick = () => {
-    setIsEditingPreferences(false);
-    form.resetFields();
   };
 
   const handleSave = async () => {
@@ -113,37 +99,20 @@ const Profile: FC = () => {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files).map((file) =>
-        URL.createObjectURL(file)
-      );
-      setImages([...images, ...newImages]);
-    }
-  };
-  
-
-  const saveGalleryChanges = () => {
-    setImages(prev => [...prev, ...newImages]);
-    setNewImages([]);
-    setIsEditingGallery(false); // Exit edit mode
+  const handleImageUpload = (event:any) => {
+    const file = event.target.files[0];
+    const imageUrl = URL.createObjectURL(file);
+    setImages([...images, { url: imageUrl }]);
   };
 
-
-  const handleRemoveImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
+  const handleRemoveImage = (index:number) => {
+    const newImages = [...images];
+    newImages.splice(index, 1);
+    setImages(newImages);
   };
 
   const toggleGalleryEditing = () => {
-    setIsEditingGallery((prev) => !prev);
-    if (isEditingGallery) {
-      // Save changes when exiting edit mode
-      saveGalleryChanges();
-    }
-  };
-
-  const handleWorkTypeChange = (value:any) => {
-    // Handle the change event here, e.g., update state or make an API call
+    setIsEditingGallery(!isEditingGallery);
   };
 
   useEffect(() => {
@@ -203,14 +172,6 @@ const Profile: FC = () => {
         setGalleryData(filteredAnswers);
       }
     }, [dataPhoto]);
-
-    const combinedImages = [
-      ...images, 
-      ...galleryData.map((item: any) => {
-        const cleanImage = item.answer.replace(/"/g, '');
-        return `${process.env.NEXT_PUBLIC_PHOTO_HOST}/${cleanImage}`;
-      })
-    ];
 
     const handleSkillChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
       const updatedSkills = [...newSkills];
@@ -431,41 +392,78 @@ const Profile: FC = () => {
 
               {/* Gallery section */}
               <div className="mt-10 mb-5 mr-3">
-    <div className="flex items-center justify-between mb-5">
-      <p className="font-bold text-lg">Gallery</p>
-      <button
-        onClick={toggleGalleryEditing}
-        className="flex items-center px-4 py-2 text-blue rounded-md"
-      >
-        <FontAwesomeIcon icon={isEditingGallery ? faSave : faEdit} className="mr-2" />
-        {isEditingGallery ? 'Save' : 'Edit'}
-      </button>
-    </div>
-    {isEditingGallery && (
-      <input type="file" accept="image/*" onChange={handleImageUpload} className="mb-4" />
-    )}
-    <div className="flex flex-wrap">
-      {combinedImages.map((imageUrl, index) => (
-        <div key={index} className="relative mr-10 mb-4">
-          <Image
-            src={imageUrl}
-            className="w-40 h-28 object-cover"
-            alt={`Gallery Image ${index + 1}`}
-            width={50}
-            height={70}
-          />
-          {isEditingGallery && (
-            <button
-              onClick={() => handleRemoveImage(index)}
-              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full"
-            >
-              <FontAwesomeIcon icon={faTrashAlt} />
-            </button>
-          )}
+      <div className="flex items-center justify-between mb-5">
+        <p className="font-bold text-lg">Gallery</p>
+        <button
+          onClick={toggleGalleryEditing}
+          className="flex items-center px-4 py-2 text-blue rounded-md"
+        >
+          <FontAwesomeIcon icon={isEditingGallery ? faSave : faEdit} className="mr-2" />
+          {isEditingGallery ? 'Save' : 'Edit'}
+        </button>
+      </div>
+      {isEditingGallery && (
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="mb-4"
+        />
+      )}
+      <div>
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          {(images.length > 5 ? images.slice(0, 5) : images).map((image, index) => (
+            <div key={index} className="relative">
+              <img
+                src={image.url}
+                alt={`Image ${index}`}
+                className="w-full h-auto object-cover cursor-pointer"
+                onClick={() => {
+                  setPhotoIndex(index);
+                  setIsOpen(true);
+                }}
+              />
+              {isEditingGallery && (
+                <button
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"
+                >
+                  <FontAwesomeIcon icon={faTrashAlt} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-      ))}
+        {images.length > 5 && !isModalOpen && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="mt-4 text-blue-500"
+          >
+            View All
+          </button>
+        )}
+        {isOpen && (
+          <Lightbox
+            mainSrc={images[photoIndex].url}
+            nextSrc={images[(photoIndex + 1) % images.length].url}
+            prevSrc={images[(photoIndex + images.length - 1) % images.length].url}
+            onCloseRequest={() => setIsOpen(false)}
+            onMovePrevRequest={() =>
+              setPhotoIndex((photoIndex + images.length - 1) % images.length)
+            }
+            onMoveNextRequest={() =>
+              setPhotoIndex((photoIndex + 1) % images.length)
+            }
+          />
+        )}
+        <ImageModal
+          isOpen={isModalOpen}
+          onRequestClose={() => setIsModalOpen(false)}
+          images={images}
+        />
+      </div>
     </div>
-  </div>
+
 
                 {/* Profile description */}
                 <div className="mt-10 mb-5 mr-3">
@@ -577,24 +575,9 @@ const Profile: FC = () => {
   </div>
 </div>
 
-              
-              {/* Other Skills */}
-              {/* <div className="mt-10 mb-5 mr-3">
-                  <p className="font-bold text-lg mb-5"> OTHER SKILLS</p>
-                  <div>
-                    <p className="text-black font-md">Construction Management</p>
-                    <p className="text-black mb-5">Experience : 3 - 5 years</p>
-                    <p className="text-black font-md">Safety Compliance</p>
-                    <p className="text-black mb-5">Experience : 2 - 5 years</p>
-                  </div>
-              </div> */}
 
         </div>
-        
         </div>
-
-          
-
       </div>
     </DefaultLayout>
   );
